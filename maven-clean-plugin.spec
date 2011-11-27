@@ -1,6 +1,6 @@
 Name:           maven-clean-plugin
 Version:        2.4.1
-Release:        3
+Release:        5
 Summary:        Maven Clean Plugin
 
 Group:          Development/Java
