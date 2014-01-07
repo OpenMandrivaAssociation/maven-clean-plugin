@@ -1,30 +1,19 @@
+%{?_javapackages_macros:%_javapackages_macros}
 Name:           maven-clean-plugin
 Version:        2.5
-Release:        1
+Release:        7.0%{?dist}
 Summary:        Maven Clean Plugin
 
-Group:          Development/Java
 License:        ASL 2.0
 URL:            http://maven.apache.org/plugins/maven-clean-plugin/
 Source0:        http://repo1.maven.org/maven2/org/apache/maven/plugins/%{name}/%{version}/%{name}-%{version}-source-release.zip
 
 BuildArch: noarch
 
-BuildRequires: java-devel >= 1.6.0
-BuildRequires: maven
-BuildRequires: maven-plugin-plugin
-BuildRequires: maven-compiler-plugin
-BuildRequires: maven-jar-plugin
-BuildRequires: maven-install-plugin
-BuildRequires: maven-resources-plugin
-BuildRequires: maven-javadoc-plugin
-BuildRequires: maven-surefire-plugin
-BuildRequires: maven-surefire-provider-junit
-BuildRequires: maven-doxia-sitetools
-BuildRequires: maven-plugin-testing-harness
-Requires: maven
-Requires:       jpackage-utils
-Requires:       java
+BuildRequires:  maven-local
+BuildRequires:  mvn(org.apache.maven.plugins:maven-plugins)
+BuildRequires:  mvn(org.apache.maven:maven-plugin-api)
+BuildRequires:  mvn(org.codehaus.plexus:plexus-utils)
 
 Provides:       maven2-plugin-clean = 1:%{version}-%{release}
 Obsoletes:      maven2-plugin-clean <= 0:2.0.8
@@ -34,9 +23,7 @@ The Maven Clean Plugin is a plugin that removes files generated
 at build-time in a project's directory.
 
 %package javadoc
-Group:          Development/Java
 Summary:        Javadoc for %{name}
-Requires:       jpackage-utils
 
 %description javadoc
 API documentation for %{name}.
@@ -44,33 +31,63 @@ API documentation for %{name}.
 
 %prep
 %setup -q 
+# maven-core has scope "provided" in Plugin Testing Harness, so we
+# need to provide it or tests will fail to compile.  This works for
+# upstream because upstream uses a different version of Plugin Testing
+# Harness in which scope of maven-core dependency is "compile".
+%pom_add_dep org.apache.maven:maven-core::test
 
 %build
-mvn-rpmbuild \
-        -Dmaven.test.failure.ignore=true \
-        install javadoc:javadoc
+%mvn_build -f
 
 %install
-# jars
-install -d -m 0755 %{buildroot}%{_javadir}
-install -m 644 target/%{name}-%{version}.jar   %{buildroot}%{_javadir}/%{name}.jar
+%mvn_install
 
-%add_to_maven_depmap org.apache.maven.plugins maven-clean-plugin %{version} JPP maven-clean-plugin
+%files -f .mfiles
+%dir %{_javadir}/%{name}
+%doc LICENSE NOTICE
 
-# poms
-install -d -m 755 %{buildroot}%{_mavenpomdir}
-install -pm 644 pom.xml \
-    %{buildroot}%{_mavenpomdir}/JPP-%{name}.pom
+%files javadoc -f .mfiles-javadoc
+%doc LICENSE NOTICE
 
-# javadoc
-install -d -m 0755 %{buildroot}%{_javadocdir}/%{name}
-cp -pr target/site/api*/* %{buildroot}%{_javadocdir}/%{name}/
+%changelog
+* Tue Aug 06 2013 Michal Srb <msrb@redhat.com> - 2.5-7
+- Adapt to current guidelines
+- Install LICENSE+NOTICE file
 
-%files
-%{_javadir}/*
-%{_mavenpomdir}/*
-%{_mavendepmapfragdir}/*
+* Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.5-6
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
 
-%files javadoc
-%{_javadocdir}/%{name}
+* Mon Mar 11 2013 Mikolaj Izdebski <mizdebsk@redhat.com> - 2.5-5
+- Add maven-core to test dependencies
+- Resolves: rhbz#914165
 
+* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.5-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
+
+* Wed Feb 06 2013 Java SIG <java-devel@lists.fedoraproject.org> - 2.5-3
+- Update for https://fedoraproject.org/wiki/Fedora_19_Maven_Rebuild
+- Replace maven BuildRequires with maven-local
+
+* Thu Jul 19 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.5-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
+
+* Sun Jun 17 2012 Alexander Kurtakov <akurtako@redhat.com> 2.5-1
+- Update to new upstream version.
+
+* Fri Jan 13 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.4.1-5
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
+
+* Wed Jun 8 2011 Alexander Kurtakov <akurtako@redhat.com> 2.4.1-4
+- Build with maven 3.x.
+- Use upstream sources.
+- Guidelines fixes.
+
+* Tue Feb 08 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.4.1-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
+
+* Wed May 12 2010 Alexander Kurtakov <akurtako@redhat.com> 2.4.1-2
+- Fix review comments.
+
+* Wed May 12 2010 Alexander Kurtakov <akurtako@redhat.com> 2.4.1-1
+- Initial package.
