@@ -1,93 +1,90 @@
-%{?_javapackages_macros:%_javapackages_macros}
-Name:           maven-clean-plugin
-Version:        2.5
-Release:        7.0%{?dist}
-Summary:        Maven Clean Plugin
+Name:		maven-clean-plugin
+Version:	3.5.0
+Release:	1
+Summary:	Removes files generated at build time
+Group:		Development/Java
+License:	Apache-2.0
+URL:		https://maven.apache.org/plugins/maven-clean-plugin/
+Source0:	https://github.com/apache/maven-clean-plugin/archive/refs/tags/maven-clean-plugin-%{version}.tar.gz#/maven-clean-plugin-%{version}.tar.gz
+BuildArch:	noarch
+BuildRequires:	python
+BuildRequires:	maven
+BuildRequires:	maven-components >= 3.10.0
+BuildRequires:	java-current-devel
+# Generates META-INF/maven/plugin.xml. The separate annotations package
+# conflicts with maven-components on the same index file.
+BuildRequires:	maven-plugin-tools
+BuildRequires:	mvn(org.apache.maven.plugins:maven-plugin-plugin)
+BuildRequires:	mvn(org.codehaus.plexus:plexus-utils)
+BuildRequires:	plexus-utils >= 3.6.2
+Requires:	plexus-utils >= 3.6.2
+BuildRequires:	mvn(org.apache.maven:maven-plugin-api)
+BuildRequires:	mvn(org.apache.maven:maven-core)
+BuildRequires:	mvn(org.apache.maven.resolver:maven-resolver-api)
+BuildRequires:	mvn(org.apache.maven.plugin-tools:maven-plugin-annotations)
+BuildSystem:	maven
+BuildOption(install):	--file-name %{name}
 
-License:        ASL 2.0
-URL:            https://maven.apache.org/plugins/maven-clean-plugin/
-Source0:        http://repo1.maven.org/maven2/org/apache/maven/plugins/%{name}/%{version}/%{name}-%{version}-source-release.zip
-
-BuildArch: noarch
-
-BuildRequires:  maven-local
-BuildRequires:  mvn(org.apache.maven.plugins:maven-plugins:pom:)
-BuildRequires:  mvn(org.apache.maven:maven-plugin-api)
-BuildRequires:  mvn(org.codehaus.plexus:plexus-utils)
-
-Provides:       maven2-plugin-clean = 1:%{version}-%{release}
-Obsoletes:      maven2-plugin-clean <= 0:2.0.8
+Obsoletes:	maven2-plugin-clean <= 0:2.0.8
+Provides:	maven2-plugin-clean = %{EVRD}
+Obsoletes:	maven-clean-plugin-javadoc < %{EVRD}
 
 %description
-The Maven Clean Plugin is a plugin that removes files generated 
-at build-time in a project's directory.
-
-%package javadoc
-Summary:        Javadoc for %{name}
-
-%description javadoc
-API documentation for %{name}.
-
+Removes files generated at build time. 3.x adds extra filesets, a fast
+mode, and an option to delete read-only files. 3.5.0 adds that
+read-only option. 4.0.0 is still a beta, so this package stays on
+3.5.0. Tests need JUnit Jupiter, so they are not run.
 
 %prep
-%setup -q 
-# maven-core has scope "provided" in Plugin Testing Harness, so we
-# need to provide it or tests will fail to compile.  This works for
-# upstream because upstream uses a different version of Plugin Testing
-# Harness in which scope of maven-core dependency is "compile".
-%pom_add_dep org.apache.maven:maven-core::test
+%autosetup -n maven-clean-plugin-maven-clean-plugin-%{version}
+rm -rf src/test src/it .github
+python - <<'PY'
+import xml.etree.ElementTree as ET
+NS = "http://maven.apache.org/POM/4.0.0"
+ET.register_namespace("", NS)
 
-%build
-%mvn_build -f
+def tag(name):
+    return "{" + NS + "}" + name
 
-%install
-%mvn_install
+def add(parent, name, text):
+    node = ET.SubElement(parent, tag(name))
+    node.text = text
+    return node
+
+root = ET.Element(tag("project"))
+add(root, "modelVersion", "4.0.0")
+add(root, "groupId", "org.apache.maven.plugins")
+add(root, "artifactId", "maven-clean-plugin")
+add(root, "version", "%{version}")
+add(root, "packaging", "maven-plugin")
+add(root, "name", "Apache Maven Clean Plugin")
+props = ET.SubElement(root, tag("properties"))
+add(props, "maven.compiler.release", "8")
+add(props, "project.build.sourceEncoding", "UTF-8")
+deps = ET.SubElement(root, tag("dependencies"))
+items = (
+    ("org.codehaus.plexus", "plexus-utils", "3.6.2", None),
+    ("org.apache.maven", "maven-plugin-api", "3.10.0", "provided"),
+    ("org.apache.maven", "maven-core", "3.10.0", "provided"),
+    ("org.apache.maven.resolver", "maven-resolver-api", "2.0.24", "provided"),
+    ("org.apache.maven.plugin-tools", "maven-plugin-annotations", "3.15.2", "provided"),
+)
+for group, artifact, version, scope in items:
+    dep = ET.SubElement(deps, tag("dependency"))
+    add(dep, "groupId", group)
+    add(dep, "artifactId", artifact)
+    add(dep, "version", version)
+    if scope:
+        add(dep, "scope", scope)
+build = ET.SubElement(root, tag("build"))
+plugins = ET.SubElement(build, tag("plugins"))
+plugin = ET.SubElement(plugins, tag("plugin"))
+add(plugin, "groupId", "org.apache.maven.plugins")
+add(plugin, "artifactId", "maven-plugin-plugin")
+# The lifecycle binding asks for 3.15.1. The packaged plugin is 3.16.0.
+add(plugin, "version", "3.16.0")
+ET.ElementTree(root).write("pom.xml", encoding="utf-8", xml_declaration=True)
+PY
 
 %files -f .mfiles
-%dir %{_javadir}/%{name}
-%doc LICENSE NOTICE
-
-%files javadoc -f .mfiles-javadoc
-%doc LICENSE NOTICE
-
-%changelog
-* Tue Aug 06 2013 Michal Srb <msrb@redhat.com> - 2.5-7
-- Adapt to current guidelines
-- Install LICENSE+NOTICE file
-
-* Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.5-6
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
-
-* Mon Mar 11 2013 Mikolaj Izdebski <mizdebsk@redhat.com> - 2.5-5
-- Add maven-core to test dependencies
-- Resolves: rhbz#914165
-
-* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.5-4
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
-
-* Wed Feb 06 2013 Java SIG <java-devel@lists.fedoraproject.org> - 2.5-3
-- Update for https://fedoraproject.org/wiki/Fedora_19_Maven_Rebuild
-- Replace maven BuildRequires with maven-local
-
-* Thu Jul 19 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.5-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
-
-* Sun Jun 17 2012 Alexander Kurtakov <akurtako@redhat.com> 2.5-1
-- Update to new upstream version.
-
-* Fri Jan 13 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.4.1-5
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
-
-* Wed Jun 8 2011 Alexander Kurtakov <akurtako@redhat.com> 2.4.1-4
-- Build with maven 3.x.
-- Use upstream sources.
-- Guidelines fixes.
-
-* Tue Feb 08 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.4.1-3
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
-
-* Wed May 12 2010 Alexander Kurtakov <akurtako@redhat.com> 2.4.1-2
-- Fix review comments.
-
-* Wed May 12 2010 Alexander Kurtakov <akurtako@redhat.com> 2.4.1-1
-- Initial package.
+%doc LICENSE NOTICE README.md

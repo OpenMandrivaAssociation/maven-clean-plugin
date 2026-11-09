@@ -1,2 +1,4 @@
 sources:
+  maven-clean-plugin-3.5.0.tar.gz: 21e21743bd1540445a7f75f1a20288e0a57ee82d
+removed_sources:
   maven-clean-plugin-2.5-source-release.zip: 501984a26e01c474e73ce0b0594c079189b725d1
